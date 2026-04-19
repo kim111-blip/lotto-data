@@ -16,19 +16,23 @@ jobs:
       - name: Node 설치
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: 로또 데이터 업데이트
         run: |
           node <<EOF
           const fs = require("fs");
 
+          async function fetchJson(url){
+            let res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(url));
+            return await res.json();
+          }
+
           async function run() {
             let n = 1200;
 
             while(true){
-              let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
-              let d = await res.json();
+              let d = await fetchJson("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
 
               if(d.returnValue !== "success"){
                 n--;
@@ -37,8 +41,7 @@ jobs:
               n++;
             }
 
-            let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
-            let d = await res.json();
+            let d = await fetchJson("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
 
             let newData = {
               round: d.drwNo,
