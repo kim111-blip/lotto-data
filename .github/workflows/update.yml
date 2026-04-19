@@ -21,51 +21,46 @@ jobs:
           node <<EOF
           const fs = require("fs");
 
+          async function get(n){
+            let url = "https://api.allorigins.win/raw?url=" +
+              encodeURIComponent("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+
+            let res = await fetch(url);
+            return await res.json();
+          }
+
           async function run() {
-            try{
-              let n = 1200;
+            let n = 1200;
 
-              while(true){
-                let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
-                let d = await res.json();
+            while(true){
+              let d = await get(n);
 
-                if(d.returnValue !== "success"){
-                  n--;
-                  break;
-                }
-                n++;
+              if(d.returnValue !== "success"){
+                n--;
+                break;
               }
+              n++;
+            }
 
-              let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
-              let d = await res.json();
+            let d = await get(n);
 
-              console.log("최신 회차:", d.drwNo);
+            let newData = {
+              round: d.drwNo,
+              date: d.drwNoDate,
+              numbers: [d.drwtNo1,d.drwtNo2,d.drwtNo3,d.drwtNo4,d.drwtNo5,d.drwtNo6],
+              bonus: d.bnusNo,
+              first: d.firstWinamnt,
+              firstCount: d.firstPrzwnerCo
+            };
 
-              let newData = {
-                round: d.drwNo,
-                date: d.drwNoDate,
-                numbers: [d.drwtNo1,d.drwtNo2,d.drwtNo3,d.drwtNo4,d.drwtNo5,d.drwtNo6],
-                bonus: d.bnusNo,
-                first: d.firstWinamnt,
-                firstCount: d.firstPrzwnerCo
-              };
+            let data = [];
+            if(fs.existsSync("lotto.json")){
+              data = JSON.parse(fs.readFileSync("lotto.json"));
+            }
 
-              let data = [];
-              if(fs.existsSync("lotto.json")){
-                data = JSON.parse(fs.readFileSync("lotto.json"));
-              }
-
-              if(!data.find(x=>x.round === newData.round)){
-                data.unshift(newData);
-                fs.writeFileSync("lotto.json", JSON.stringify(data,null,2));
-                console.log("추가 완료");
-              } else {
-                console.log("이미 최신 데이터 있음");
-              }
-
-            }catch(e){
-              console.error("에러:", e);
-              process.exit(1);
+            if(!data.find(x=>x.round === newData.round)){
+              data.unshift(newData);
+              fs.writeFileSync("lotto.json", JSON.stringify(data,null,2));
             }
           }
 
