@@ -1,0 +1,72 @@
+name: Update Lotto Data
+
+on:
+  schedule:
+    - cron: "0 12 * * 6"   # 매주 토요일 21시(한국시간)
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v3
+
+      - name: Node 설치
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: 로또 데이터 업데이트
+        run: |
+          node <<EOF
+          const fs = require("fs");
+
+          async function run() {
+            let n = 1200;
+
+            while(true){
+              let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+              let d = await res.json();
+
+              if(d.returnValue !== "success"){
+                n--;
+                break;
+              }
+              n++;
+            }
+
+            let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+            let d = await res.json();
+
+            let newData = {
+              round: d.drwNo,
+              date: d.drwNoDate,
+              numbers: [d.drwtNo1,d.drwtNo2,d.drwtNo3,d.drwtNo4,d.drwtNo5,d.drwtNo6],
+              bonus: d.bnusNo,
+              first: d.firstWinamnt,
+              firstCount: d.firstPrzwnerCo
+            };
+
+            let data = [];
+            if(fs.existsSync("lotto.json")){
+              data = JSON.parse(fs.readFileSync("lotto.json"));
+            }
+
+            if(!data.find(x=>x.round === newData.round)){
+              data.unshift(newData);
+              fs.writeFileSync("lotto.json", JSON.stringify(data,null,2));
+            }
+          }
+
+          run();
+          EOF
+
+      - name: 커밋 & 푸시
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add lotto.json
+          git commit -m "auto update lotto" || echo "no changes"
+          git push
