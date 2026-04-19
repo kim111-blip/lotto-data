@@ -10,66 +10,72 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 코드 가져오기
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Node 설치
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "24"
 
-      - name: 로또 데이터 업데이트
+      - name: Update lotto
         run: |
           node <<EOF
           const fs = require("fs");
 
-          async function fetchJson(url){
-            let res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(url));
-            return await res.json();
-          }
-
           async function run() {
-            let n = 1200;
+            try{
+              let n = 1200;
 
-            while(true){
-              let d = await fetchJson("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+              while(true){
+                let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+                let d = await res.json();
 
-              if(d.returnValue !== "success"){
-                n--;
-                break;
+                if(d.returnValue !== "success"){
+                  n--;
+                  break;
+                }
+                n++;
               }
-              n++;
-            }
 
-            let d = await fetchJson("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+              let res = await fetch("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+              let d = await res.json();
 
-            let newData = {
-              round: d.drwNo,
-              date: d.drwNoDate,
-              numbers: [d.drwtNo1,d.drwtNo2,d.drwtNo3,d.drwtNo4,d.drwtNo5,d.drwtNo6],
-              bonus: d.bnusNo,
-              first: d.firstWinamnt,
-              firstCount: d.firstPrzwnerCo
-            };
+              console.log("최신 회차:", d.drwNo);
 
-            let data = [];
-            if(fs.existsSync("lotto.json")){
-              data = JSON.parse(fs.readFileSync("lotto.json"));
-            }
+              let newData = {
+                round: d.drwNo,
+                date: d.drwNoDate,
+                numbers: [d.drwtNo1,d.drwtNo2,d.drwtNo3,d.drwtNo4,d.drwtNo5,d.drwtNo6],
+                bonus: d.bnusNo,
+                first: d.firstWinamnt,
+                firstCount: d.firstPrzwnerCo
+              };
 
-            if(!data.find(x=>x.round === newData.round)){
-              data.unshift(newData);
-              fs.writeFileSync("lotto.json", JSON.stringify(data,null,2));
+              let data = [];
+              if(fs.existsSync("lotto.json")){
+                data = JSON.parse(fs.readFileSync("lotto.json"));
+              }
+
+              if(!data.find(x=>x.round === newData.round)){
+                data.unshift(newData);
+                fs.writeFileSync("lotto.json", JSON.stringify(data,null,2));
+                console.log("추가 완료");
+              } else {
+                console.log("이미 최신 데이터 있음");
+              }
+
+            }catch(e){
+              console.error("에러:", e);
+              process.exit(1);
             }
           }
 
           run();
           EOF
 
-      - name: 커밋 & 푸시
+      - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add lotto.json
-          git commit -m "auto update lotto" || echo "no changes"
+          git commit -m "update lotto" || echo "no change"
           git push
