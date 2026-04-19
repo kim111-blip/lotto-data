@@ -21,36 +21,29 @@ jobs:
           node <<EOF
           const fs = require("fs");
 
-          async function get(n){
-            let url = "https://api.allorigins.win/raw?url=" +
-              encodeURIComponent("https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=" + n);
+          async function run() {
+            const url = "https://raw.githubusercontent.com/JaehyunLee25/lotto/master/lotto.csv";
 
             let res = await fetch(url);
-            return await res.json();
-          }
+            let text = await res.text();
 
-          async function run() {
-            let n = 1200;
-
-            while(true){
-              let d = await get(n);
-
-              if(d.returnValue !== "success"){
-                n--;
-                break;
-              }
-              n++;
-            }
-
-            let d = await get(n);
+            let lines = text.trim().split("\n");
+            let last = lines[lines.length - 1].split(",");
 
             let newData = {
-              round: d.drwNo,
-              date: d.drwNoDate,
-              numbers: [d.drwtNo1,d.drwtNo2,d.drwtNo3,d.drwtNo4,d.drwtNo5,d.drwtNo6],
-              bonus: d.bnusNo,
-              first: d.firstWinamnt,
-              firstCount: d.firstPrzwnerCo
+              round: parseInt(last[0]),
+              date: last[1],
+              numbers: [
+                parseInt(last[2]),
+                parseInt(last[3]),
+                parseInt(last[4]),
+                parseInt(last[5]),
+                parseInt(last[6]),
+                parseInt(last[7])
+              ],
+              bonus: parseInt(last[8]),
+              first: parseInt(last[9]),
+              firstCount: parseInt(last[10])
             };
 
             let data = [];
@@ -61,6 +54,9 @@ jobs:
             if(!data.find(x=>x.round === newData.round)){
               data.unshift(newData);
               fs.writeFileSync("lotto.json", JSON.stringify(data,null,2));
+              console.log("업데이트 완료:", newData.round);
+            } else {
+              console.log("이미 최신 상태");
             }
           }
 
