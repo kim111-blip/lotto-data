@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>로또</title>
+</head>
+
+<body>
+
+<h2 id="title">로딩중...</h2>
+<div id="balls"></div>
+
+<script>
+
+async function load(){
+
+let r = await fetch("/.netlify/functions/lotto?round=1150");
+let d = await r.json();
+
+document.getElementById("title").innerText="제 "+d.drwNo+"회";
+
+document.getElementById("balls").innerText =
+d.drwtNo1+", "+d.drwtNo2+", "+d.drwtNo3+", "+
+d.drwtNo4+", "+d.drwtNo5+", "+d.drwtNo6;
+
+}
+
+load();
+
+</script>
+
+</body>
+</html>
